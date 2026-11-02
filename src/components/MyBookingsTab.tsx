@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   FileText,
-  RotateCcw
+  RotateCcw,
+  Star
 } from 'lucide-react';
 import { Booking } from '../types';
 
@@ -21,6 +22,7 @@ interface MyBookingsTabProps {
   onViewDutySlip: (booking: Booking) => void;
   onCompleteRide: (bookingId: string) => void;
   onCancelRide: (bookingId: string) => void;
+  onRateBooking?: (booking: Booking) => void;
 }
 
 export const MyBookingsTab: React.FC<MyBookingsTabProps> = ({
@@ -30,6 +32,7 @@ export const MyBookingsTab: React.FC<MyBookingsTabProps> = ({
   onViewDutySlip,
   onCompleteRide,
   onCancelRide,
+  onRateBooking,
 }) => {
   const [subTab, setSubTab] = React.useState<'posted' | 'received'>('posted');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -204,6 +207,71 @@ export const MyBookingsTab: React.FC<MyBookingsTabProps> = ({
                       <span>Cancel & Refund</span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Completed Status & Feedback Banner */}
+              {isCompleted && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs space-y-2">
+                  <div className="flex items-center justify-between text-emerald-900 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Ride Completed & Escrow Settled</span>
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
+                      Net: ₹{Math.round(booking.commission * 0.97)} Credited
+                    </span>
+                  </div>
+
+                  {booking.hasGivenFeedback ? (
+                    <div className="flex items-center justify-between bg-white/95 p-2.5 rounded-xl border border-emerald-200 text-[11px] shadow-2xs">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
+                          <span>Your Rating: {booking.feedbackRating || 5}★</span>
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded-md">
+                            Feedback Submitted ✓
+                          </span>
+                        </div>
+                        {booking.feedbackTags && booking.feedbackTags.length > 0 && (
+                          <div className="text-[10px] text-slate-500 font-medium">
+                            Tags: {booking.feedbackTags.slice(0, 3).join(' • ')}
+                          </div>
+                        )}
+                      </div>
+                      {onRateBooking && (
+                        <button
+                          onClick={() => onRateBooking(booking)}
+                          className="text-[10px] text-amber-700 hover:text-amber-800 font-bold hover:underline shrink-0 ml-2"
+                        >
+                          Update ✎
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-r from-amber-50 to-amber-100/80 p-3 rounded-2xl border border-amber-300 text-[11px] space-y-2 shadow-2xs">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
+                            <span>Rate Partner & Build Community Trust</span>
+                          </div>
+                          <p className="text-[10px] text-amber-900 mt-0.5 leading-snug">
+                            Ride completed! Give feedback on pilot punctuality, vehicle cleanliness & AC. Your rating directly updates this vendor's average rating on Market cards.
+                          </p>
+                        </div>
+                      </div>
+                      {onRateBooking && (
+                        <button
+                          onClick={() => onRateBooking(booking)}
+                          className="w-full py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-95 text-slate-950 font-black rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition-all text-xs"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
+                          <span>Rate Driver & Vendor Now (वेंडर फीडबैक दें)</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

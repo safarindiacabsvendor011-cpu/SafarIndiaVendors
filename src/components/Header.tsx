@@ -4,21 +4,25 @@ import { Headphones, Bell, LogOut, MessageSquare } from 'lucide-react';
 interface HeaderProps {
   onOpenHelp: () => void;
   onOpenChats: () => void;
+  onOpenNotifications: () => void;
   alertsEnabled: boolean;
   setAlertsEnabled: (val: boolean) => void;
   activeTab: string;
   onLogout?: () => void;
   unreadCount?: number;
+  notificationUnreadCount?: number;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenHelp,
   onOpenChats,
+  onOpenNotifications,
   alertsEnabled,
   setAlertsEnabled,
   activeTab,
   onLogout,
   unreadCount = 1,
+  notificationUnreadCount = 2,
 }) => {
   return (
     <header className="sticky top-0 z-30 bg-white border-b border-slate-100 shadow-xs px-3.5 py-2.5 flex items-center justify-between">
@@ -46,6 +50,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2">
           <h1 className="text-base font-bold text-slate-900">My Trips & Duties</h1>
         </div>
+      ) : activeTab === 'analytics' ? (
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-bold text-slate-900">Vendor Analytics & Yield</h1>
+        </div>
       ) : activeTab === 'driver' ? (
         <div className="flex items-center gap-2">
           <h1 className="text-base font-bold text-slate-900">Driver Suvidha Hub</h1>
@@ -66,8 +74,22 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       )}
 
-      {/* Right side: Chat Button, Alerts toggle & Help Button */}
-      <div className="flex items-center gap-2">
+      {/* Right side: Notification Bell, Chat Button, Alerts toggle & Help Button */}
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* Notification Center Bell Button */}
+        <button
+          onClick={onOpenNotifications}
+          className="relative p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
+          title="Notification Center & Duty Radar"
+        >
+          <Bell className="w-4 h-4 text-slate-700" />
+          {notificationUnreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 px-1.5 py-0.2 min-w-4 text-[10px] rounded-full bg-rose-500 text-white font-mono font-black flex items-center justify-center ring-2 ring-white shadow-xs">
+              {notificationUnreadCount}
+            </span>
+          )}
+        </button>
+
         {/* Quick Chat Header Shortcut */}
         <button
           onClick={onOpenChats}

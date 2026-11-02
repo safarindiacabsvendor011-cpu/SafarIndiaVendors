@@ -6,6 +6,7 @@ import { MyBookingsTab } from './components/MyBookingsTab';
 import { ChatTab } from './components/ChatTab';
 import { DriverHubTab } from './components/DriverHubTab';
 import { ProfileTab } from './components/ProfileTab';
+import { AnalyticsTab } from './components/AnalyticsTab';
 import { PostModal } from './components/PostModal';
 import { FilterModal } from './components/FilterModal';
 import { CommissionEscrowModal } from './components/CommissionEscrowModal';
@@ -18,6 +19,13 @@ import { FleetManager } from './components/FleetManager';
 import { InsuranceModal } from './components/InsuranceModal';
 import { StateTaxModal } from './components/StateTaxModal';
 import { CngFinderModal } from './components/CngFinderModal';
+import { AuthModal } from './components/AuthModal';
+import { NotificationCenterModal } from './components/NotificationCenterModal';
+import { ChallanModal } from './components/ChallanModal';
+import { VisualPushBanner } from './components/VisualPushBanner';
+import { DriverFeedbackModal } from './components/DriverFeedbackModal';
+import { VendorTrustModal } from './components/VendorTrustModal';
+import { playNotificationChime } from './utils/audioChime';
 
 import { 
   INITIAL_BOOKINGS, 
@@ -25,7 +33,10 @@ import {
   INITIAL_CHATS, 
   INITIAL_FLEET, 
   INITIAL_DRIVERS,
-  INITIAL_TRANSACTIONS
+  INITIAL_TRANSACTIONS,
+  INITIAL_ALERT_CRITERIA,
+  INITIAL_NOTIFICATIONS,
+  INITIAL_FEEDBACKS
 } from './data/initialData';
 import { 
   Booking, 
@@ -37,12 +48,33 @@ import {
   Driver,
   WalletTransaction,
   Duty,
-  EmptyCar
+  EmptyCar,
+  UserProfile,
+  DutyAlertCriteria,
+  AppNotification,
+  DriverFeedback
 } from './types';
-import { CheckCircle2, Headphones, Sparkles, MessageCircle } from 'lucide-react';
+import { CheckCircle2, Headphones, Sparkles, MessageCircle, Bell } from 'lucide-react';
 
 export default function App() {
   // 1. Persistent State
+  const [userProfile, setUserProfile] = React.useState<UserProfile>(() => {
+    const saved = localStorage.getItem('sic_user_profile');
+    return saved ? JSON.parse(saved) : {
+      name: 'SafarIndiaCabs Partner',
+      phone: '8506046346',
+      city: 'Delhi NCR',
+      attachedVehicle: {
+        plateNumber: 'DL 01 ZA 4482',
+        model: 'Swift Dzire Tour 2024',
+        category: 'Sedan',
+      },
+      membershipPlan: 'verified',
+      membershipExpiry: 'Nov 29, 2026',
+      isLoggedIn: true,
+    };
+  });
+
   const [bookings, setBookings] = React.useState<Booking[]>(() => {
     const saved = localStorage.getItem('sic_leads_bookings');
     return saved ? JSON.parse(saved) : INITIAL_BOOKINGS;
@@ -78,10 +110,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
   });
 
-  const [currentPlanId, setCurrentPlanId] = React.useState<'partner' | 'elite'>('partner');
-  const [planExpiryDate, setPlanExpiryDate] = React.useState('Nov 29, 2026');
-
   // Sync with LocalStorage
+  React.useEffect(() => {
+    localStorage.setItem('sic_user_profile', JSON.stringify(userProfile));
+  }, [userProfile]);
   React.useEffect(() => {
     localStorage.setItem('sic_leads_bookings', JSON.stringify(bookings));
   }, [bookings]);
@@ -98,9 +130,35 @@ export default function App() {
     localStorage.setItem('sic_vendor_wallet', walletBalance.toString());
   }, [walletBalance]);
 
+  const [notifications, setNotifications] = React.useState<AppNotification[]>(() => {
+    const saved = localStorage.getItem('sic_notifications');
+    return saved ? JSON.parse(saved) : INITIAL_NOTIFICATIONS;
+  });
+
+  const [alertCriteria, setAlertCriteria] = React.useState<DutyAlertCriteria>(() => {
+    const saved = localStorage.getItem('sic_alert_criteria');
+    return saved ? JSON.parse(saved) : INITIAL_ALERT_CRITERIA;
+  });
+
+  const [feedbacks, setFeedbacks] = React.useState<DriverFeedback[]>(() => {
+    const saved = localStorage.getItem('sic_driver_feedbacks');
+    return saved ? JSON.parse(saved) : INITIAL_FEEDBACKS;
+  });
+
   React.useEffect(() => {
-    localStorage.setItem('sic_vendor_txs', JSON.stringify(transactions));
-  }, [transactions]);
+    localStorage.setItem('sic_driver_feedbacks', JSON.stringify(feedbacks));
+  }, [feedbacks]);
+
+  const [activePushBannerNotification, setActivePushBannerNotification] = React.useState<AppNotification | null>(null);
+
+  // Sync notifications & alert criteria
+  React.useEffect(() => {
+    localStorage.setItem('sic_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  React.useEffect(() => {
+    localStorage.setItem('sic_alert_criteria', JSON.stringify(alertCriteria));
+  }, [alertCriteria]);
 
   // 2. UI Navigation & Filters
   const [activeTab, setActiveTab] = React.useState<string>('market');
@@ -128,6 +186,9 @@ export default function App() {
   ]);
 
   // 3. Modals State
+  const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
+  const [isAuthOpen, setIsAuthOpen] = React.useState(false);
+  const [subscriptionReason, setSubscriptionReason] = React.useState<string | null>(null);
   const [isPostOpen, setIsPostOpen] = React.useState(false);
   const [isFilterOpen, setIsFilterOpen] = React.useState(false);
   const [isHelpOpen, setIsHelpOpen] = React.useState(false);
@@ -137,6 +198,13 @@ export default function App() {
   const [isInsuranceOpen, setIsInsuranceOpen] = React.useState(false);
   const [isStateTaxOpen, setIsStateTaxOpen] = React.useState(false);
   const [isCngFinderOpen, setIsCngFinderOpen] = React.useState(false);
+  const [isChallanOpen, setIsChallanOpen] = React.useState(false);
+  
+  // Feedback & Vendor Trust Modals State
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = React.useState(false);
+  const [feedbackModalBooking, setFeedbackModalBooking] = React.useState<Booking | null>(null);
+  const [vendorTrustModalVendor, setVendorTrustModalVendor] = React.useState<Booking['postedBy'] | null>(null);
+  const [isVendorTrustModalOpen, setIsVendorTrustModalOpen] = React.useState(false);
   
   const [escrowModalBooking, setEscrowModalBooking] = React.useState<Booking | null>(null);
   const [activeChatId, setActiveChatId] = React.useState<string | null>(null);
@@ -146,6 +214,34 @@ export default function App() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Membership Gate Check for Posting
+  const handleOpenPostModal = () => {
+    if (userProfile.membershipPlan === 'none') {
+      setSubscriptionReason('Duty Leads ya Khali Gaadi publish karne ke liye active membership anivarya hai. Kripya Verified Partner ya Platinum Premium plan chunein.');
+      setIsSubscriptionsOpen(true);
+      return;
+    }
+    setIsPostOpen(true);
+  };
+
+  // Membership Gate Check for Accepting / Paying Commission
+  const handleOpenCommissionPay = (booking: Booking) => {
+    if (userProfile.membershipPlan === 'none') {
+      setSubscriptionReason('Booking accept karne aur passenger contact unlock karne ke liye active membership anivarya hai. Kripya plan activate karein.');
+      setIsSubscriptionsOpen(true);
+      return;
+    }
+    setEscrowModalBooking(booking);
+  };
+
+  // Duty Board Refresh (Triggered by Scroll-down / Pull-to-refresh)
+  const handleRefreshMarket = () => {
+    if (alertsEnabled) {
+      playNotificationChime();
+    }
+    showToast(`Live Duty Mandi Refreshed! Leads & vendor ratings synced for ${userProfile.attachedVehicle.category}.`);
   };
 
   // 4. Handlers
@@ -321,9 +417,10 @@ export default function App() {
 
     const netPayout = Math.round(booking.commission * 0.97);
     const platformCut = booking.commission - netPayout;
+    const updatedBooking: Booking = { ...booking, status: 'Completed' };
 
     setBookings((prev) =>
-      prev.map((b) => (b.id === bookingId ? { ...b, status: 'Completed' } : b))
+      prev.map((b) => (b.id === bookingId ? updatedBooking : b))
     );
 
     setTransactions((prev) => [
@@ -340,6 +437,67 @@ export default function App() {
     ]);
 
     showToast(`Ride Completed! Agent received ₹${netPayout} (3% platform fee ₹${platformCut} deducted).`);
+
+    // Auto-prompt Driver Feedback immediately to rate each other and update market trust rating!
+    setTimeout(() => {
+      setFeedbackModalBooking(updatedBooking);
+      setIsFeedbackModalOpen(true);
+    }, 450);
+  };
+
+  // Submit Driver / Vendor Feedback & Recalculate Live Average Rating
+  const handleSubmitFeedback = (feedbackData: Omit<DriverFeedback, 'id' | 'createdAt'>) => {
+    const newFb: DriverFeedback = {
+      ...feedbackData,
+      id: `fb-${Date.now()}`,
+      createdAt: 'Just now',
+    };
+
+    setFeedbacks((prev) => [newFb, ...prev]);
+
+    // Update target booking and recalculate vendor average rating across all their bookings
+    setBookings((prev) =>
+      prev.map((b) => {
+        const isTarget = b.id === feedbackData.bookingId;
+        const isSameVendor =
+          b.postedBy.id === feedbackData.toVendorId ||
+          b.postedBy.name.toLowerCase() === feedbackData.toVendorName.toLowerCase();
+
+        if (isSameVendor) {
+          const currentCount = b.postedBy.reviewsCount || 1;
+          const currentRating = b.postedBy.rating || 4.8;
+          const newCount = currentCount + 1;
+          const newAvgRating = Number(
+            ((currentRating * currentCount + feedbackData.rating) / newCount).toFixed(1)
+          );
+
+          return {
+            ...b,
+            hasGivenFeedback: isTarget ? true : b.hasGivenFeedback,
+            feedbackRating: isTarget ? feedbackData.rating : b.feedbackRating,
+            feedbackTags: isTarget ? feedbackData.tags : b.feedbackTags,
+            postedBy: {
+              ...b.postedBy,
+              reviewsCount: newCount,
+              rating: newAvgRating,
+            },
+          };
+        }
+
+        if (isTarget) {
+          return {
+            ...b,
+            hasGivenFeedback: true,
+            feedbackRating: feedbackData.rating,
+            feedbackTags: feedbackData.tags,
+          };
+        }
+
+        return b;
+      })
+    );
+
+    showToast(`⭐ Rating Recorded! ${feedbackData.toVendorName}'s average rating updated.`);
   };
 
   // Cancel Ride (100% Refund to paying vendor)
@@ -368,6 +526,138 @@ export default function App() {
     showToast(`Ride cancelled. 100% Commission ₹${booking.commission} refunded to wallet!`);
   };
 
+  // Duty Matching Engine for Saved Filter Criteria (Radar)
+  const checkAndTriggerDutyMatch = (booking: Booking) => {
+    if (!alertCriteria.enabled) return;
+
+    const matchedTags: string[] = [];
+
+    // 1. Vehicle Category match
+    const bType = booking.vehicleType.toLowerCase();
+    const vehicleMatches = alertCriteria.vehicleCategories.some((cat) => {
+      const c = cat.toLowerCase();
+      return bType.includes(c) || c.includes(bType);
+    });
+
+    if (vehicleMatches) {
+      matchedTags.push(`Vehicle: ${booking.vehicleType}`);
+    } else {
+      if (alertCriteria.vehicleCategories.length > 0) return;
+    }
+
+    // 2. Pickup Hub match
+    if (alertCriteria.preferredPickupCities.length > 0) {
+      const bPickup = booking.pickupLocation.toLowerCase();
+      const pickupMatches = alertCriteria.preferredPickupCities.some((c) =>
+        bPickup.includes(c.toLowerCase()) || c.toLowerCase().includes(bPickup)
+      );
+      if (pickupMatches) {
+        matchedTags.push(`Pickup: ${booking.pickupLocation}`);
+      } else {
+        return;
+      }
+    }
+
+    // 3. Drop Destination match
+    if (
+      alertCriteria.preferredDropCities.length > 0 &&
+      !alertCriteria.preferredDropCities.includes('Any Destination')
+    ) {
+      const bDrop = booking.dropLocation.toLowerCase();
+      const dropMatches = alertCriteria.preferredDropCities.some((c) =>
+        bDrop.includes(c.toLowerCase()) || c.toLowerCase().includes(bDrop)
+      );
+      if (dropMatches) {
+        matchedTags.push(`Drop: ${booking.dropLocation}`);
+      } else {
+        return;
+      }
+    }
+
+    // 4. Financial thresholds
+    if (booking.totalAmount < alertCriteria.minFare) return;
+    if (booking.commission < alertCriteria.minCommission) return;
+
+    matchedTags.push(`Min Fare: ₹${booking.totalAmount.toLocaleString('en-IN')}`);
+
+    // Create Notification item
+    const newNotif: AppNotification = {
+      id: `notif-${Date.now()}`,
+      type: 'duty_match',
+      title: `🎯 Match Found: ${booking.pickupLocation} ⟶ ${booking.dropLocation}`,
+      message: `New duty matching your radar filter: ${booking.vehicleType} from ${booking.pickupLocation} to ${booking.dropLocation}. Fare ₹${booking.totalAmount.toLocaleString('en-IN')}, Commission ₹${booking.commission.toLocaleString('en-IN')}.`,
+      timestamp: 'Just now',
+      read: false,
+      bookingId: booking.id,
+      matchedCriteria: matchedTags,
+      bookingData: {
+        pickupLocation: booking.pickupLocation,
+        dropLocation: booking.dropLocation,
+        vehicleType: booking.vehicleType,
+        totalAmount: booking.totalAmount,
+        commission: booking.commission,
+      },
+    };
+
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    // Audio Chime
+    if (alertCriteria.soundEnabled) {
+      playNotificationChime();
+    }
+
+    // In-app visual push banner
+    if (alertCriteria.pushVisualsEnabled) {
+      setActivePushBannerNotification(newNotif);
+      setTimeout(() => {
+        setActivePushBannerNotification((curr) => (curr?.id === newNotif.id ? null : curr));
+      }, 7500);
+    }
+  };
+
+  // Simulate duty matching user criteria on demand
+  const handleSimulateDutyMatch = () => {
+    const pickup = alertCriteria.preferredPickupCities[0] || 'Haldwani';
+    const drop =
+      alertCriteria.preferredDropCities.find((c) => c !== 'Any Destination') || 'New Delhi';
+    const veh = alertCriteria.vehicleCategories[0] || userProfile.attachedVehicle.category || 'Sedan';
+    const fare = Math.max(3800, alertCriteria.minFare + 400);
+    const comm = Math.max(600, alertCriteria.minCommission + 200);
+
+    const simId = `${Math.floor(3580000 + Math.random() * 19000)}`;
+    const newSimBooking: Booking = {
+      id: simId,
+      status: 'Open',
+      pickupLocation: pickup,
+      dropLocation: drop,
+      tripType: 'One Way',
+      pickupDate: 'Today @ 01:15 PM',
+      vehicleType: veh,
+      totalAmount: fare,
+      commission: comm,
+      platformFeePercent: userProfile.membershipPlan === 'platinum' ? 2 : 3,
+      extraRequirements: 'Carrier required, AC in plains. Clean tourist cab needed.',
+      isSecured: true,
+      postedBy: {
+        id: `agent-sim-${Date.now()}`,
+        name: 'Kumaon & Doon Travel Desk',
+        phone: '+91 94111 22334',
+        reviewsCount: 164,
+        rating: 4.9,
+      },
+      customerDetails: {
+        name: 'Sunil Pandey',
+        phone: '+91 98102 33445',
+        pickupAddress: `${pickup} Railway Station Gate 1`,
+      },
+      hasUnlockedContact: false,
+    };
+
+    setBookings((prev) => [newSimBooking, ...prev]);
+    checkAndTriggerDutyMatch(newSimBooking);
+    showToast(`Radar Match Fired! Duty #${simId} matches your ${veh} & ${pickup} filter.`);
+  };
+
   // Post New Booking
   const handlePostBooking = (newB: Omit<Booking, 'id' | 'hasUnlockedContact' | 'chatId'>) => {
     const newId = `${Math.floor(3500000 + Math.random() * 90000)}`;
@@ -378,6 +668,7 @@ export default function App() {
       chatId: `chat-${newId}`,
     };
     setBookings((prev) => [fullBooking, ...prev]);
+    checkAndTriggerDutyMatch(fullBooking);
     showToast(`New booking ID:${newId} published to Duty Hub!`);
   };
 
@@ -393,11 +684,19 @@ export default function App() {
     showToast(`Khali Gaadi registered for ${newFv.currentLocation} ⟶ ${newFv.destinationLocation}!`);
   };
 
-  // Plan Selection
-  const handleSelectPlan = (planId: 'partner' | 'elite') => {
-    setCurrentPlanId(planId);
-    setPlanExpiryDate('Dec 02, 2026');
-    showToast(planId === 'elite' ? 'Upgraded to Elite Master Operator (₹799/mo)!' : 'Active Plan: Verified Partner (₹299/mo)');
+  // Plan Selection (Verified ₹299 vs Platinum ₹799)
+  const handleSelectPlan = (planId: 'verified' | 'platinum') => {
+    setUserProfile((prev) => ({
+      ...prev,
+      membershipPlan: planId,
+      membershipExpiry: 'Dec 02, 2026',
+    }));
+    setSubscriptionReason(null);
+    showToast(
+      planId === 'platinum'
+        ? '👑 Upgraded to Platinum Premium VIP (₹799/mo)! 2% Platform Fee & 5-min early leads active.'
+        : '🛡️ Active Plan: Verified Partner (₹299/mo)!'
+    );
   };
 
   // Adapter for Duty Slip
@@ -475,10 +774,25 @@ export default function App() {
           </div>
         )}
 
+        {/* Floating Visual Push Banner for Matched Duties */}
+        <VisualPushBanner
+          notification={activePushBannerNotification}
+          onClose={() => setActivePushBannerNotification(null)}
+          onOpenBooking={(bId) => {
+            setActiveTab('market');
+            const targetBooking = bookings.find((b) => b.id === bId);
+            if (targetBooking) {
+              handleOpenCommissionPay(targetBooking);
+            }
+          }}
+        />
+
         {/* Top Header */}
         <Header
           onOpenHelp={() => setIsHelpOpen(true)}
           onOpenChats={() => setActiveTab('chat')}
+          onOpenNotifications={() => setIsNotificationsOpen(true)}
+          notificationUnreadCount={notifications.filter((n) => !n.read).length}
           alertsEnabled={alertsEnabled}
           setAlertsEnabled={setAlertsEnabled}
           activeTab={activeTab}
@@ -495,7 +809,7 @@ export default function App() {
               freeVehicles={freeVehicles}
               onOpenChat={handleOpenChatFromBooking}
               onShareWhatsApp={handleShareWhatsAppBooking}
-              onOpenCommissionPay={(b) => setEscrowModalBooking(b)}
+              onOpenCommissionPay={handleOpenCommissionPay}
               onOpenFilterModal={() => setIsFilterOpen(true)}
               onOpenFreeVehShare={handleShareWhatsAppFreeVehicle}
               activeFilterChips={activeFilterChips}
@@ -504,6 +818,18 @@ export default function App() {
               onOpenStateTax={() => setIsStateTaxOpen(true)}
               onOpenCngFinder={() => setIsCngFinderOpen(true)}
               onOpenHelpRules={() => setIsHelpOpen(true)}
+              attachedVehicleCategory={userProfile.attachedVehicle.category}
+              onRefresh={handleRefreshMarket}
+              onOpenNotificationCenter={() => setIsNotificationsOpen(true)}
+              alertCriteria={alertCriteria}
+              onRateBooking={(booking) => {
+                setFeedbackModalBooking(booking);
+                setIsFeedbackModalOpen(true);
+              }}
+              onOpenVendorTrust={(vendor) => {
+                setVendorTrustModalVendor(vendor);
+                setIsVendorTrustModalOpen(true);
+              }}
             />
           )}
 
@@ -515,6 +841,38 @@ export default function App() {
               onViewDutySlip={handleOpenDutySlip}
               onCompleteRide={handleCompleteRide}
               onCancelRide={handleCancelRide}
+              onRateBooking={(booking) => {
+                setFeedbackModalBooking(booking);
+                setIsFeedbackModalOpen(true);
+              }}
+            />
+          )}
+
+          {activeTab === 'analytics' && (
+            <AnalyticsTab
+              userProfile={userProfile}
+              bookings={bookings}
+              walletBalance={walletBalance}
+              onNavigateToMarket={(routeFilter) => {
+                if (routeFilter) {
+                  setFilterState((prev) => ({ ...prev, pickup: routeFilter }));
+                  setActiveFilterChips((prev) => [
+                    ...prev.filter((c) => !c.startsWith('Pickup:')),
+                    `Pickup: ${routeFilter}`,
+                  ]);
+                }
+                setActiveTab('market');
+              }}
+              onOpenPostKhaliGaadi={() => {
+                handleOpenPostModal();
+              }}
+              onOpenSubscriptionModal={() => {
+                setSubscriptionReason('Platinum VIP subscription unlocks lower 2% platform fee & priority bid rankings.');
+                setIsSubscriptionsOpen(true);
+              }}
+              onOpenFilterRadar={() => {
+                setIsNotificationsOpen(true);
+              }}
             />
           )}
 
@@ -523,11 +881,12 @@ export default function App() {
               onOpenInsurance={() => setIsInsuranceOpen(true)}
               onOpenStateTax={() => setIsStateTaxOpen(true)}
               onOpenCngFinder={() => setIsCngFinderOpen(true)}
+              onOpenAnalytics={() => setActiveTab('analytics')}
               onOpenEmergencySOS={() => {
                 alert('🚨 SOS ALERT TRIGGERED! Your live GPS coordinates have been sent to SafarIndiaCabs 24x7 Highway Emergency Desk & Nearby Verified Partners.');
               }}
               onCheckChallan={() => {
-                alert('Traffic e-Challan Check: No pending RTO challans found for registered vehicle DL 01 ZA 4482. VAHAN status: CLEAN.');
+                setIsChallanOpen(true);
               }}
               onCallRoadsideAssistance={() => {
                 window.location.href = 'tel:8506046346';
@@ -543,7 +902,7 @@ export default function App() {
               onSendMessage={handleSendMessage}
               onPayCommissionFromChat={(thread) => {
                 const b = bookings.find((item) => item.id === thread.bookingId);
-                if (b) setEscrowModalBooking(b);
+                if (b) handleOpenCommissionPay(b);
               }}
               onSendCommissionOffer={(threadId, amount) => {
                 showToast(`Commission deal of ₹${amount} sent to partner.`);
@@ -553,13 +912,25 @@ export default function App() {
 
           {activeTab === 'profile' && (
             <ProfileTab
-              onOpenSubscriptions={() => setIsSubscriptionsOpen(true)}
+              onOpenSubscriptions={() => {
+                setSubscriptionReason(null);
+                setIsSubscriptionsOpen(true);
+              }}
               onOpenManageFleet={() => setIsFleetOpen(true)}
               onOpenTransactions={() => setIsWalletOpen(true)}
               onOpenLanguage={() => setLang(lang === 'en' ? 'hi' : 'en')}
               onOpenHelp={() => setIsHelpOpen(true)}
-              currentPlanName={currentPlanId === 'elite' ? 'Elite Master Operator' : 'Verified Partner'}
-              planExpiryDate={planExpiryDate}
+              onOpenAuthModal={() => setIsAuthOpen(true)}
+              onOpenAnalytics={() => setActiveTab('analytics')}
+              userProfile={userProfile}
+              currentPlanName={
+                userProfile.membershipPlan === 'platinum'
+                  ? 'Platinum Premium (VIP)'
+                  : userProfile.membershipPlan === 'verified'
+                  ? 'Verified Partner'
+                  : 'No Active Membership'
+              }
+              planExpiryDate={userProfile.membershipExpiry}
               lang={lang}
             />
           )}
@@ -588,7 +959,7 @@ export default function App() {
             setActiveTab(tab);
             if (tab !== 'chat') setActiveChatId(null);
           }}
-          onOpenPostModal={() => setIsPostOpen(true)}
+          onOpenPostModal={handleOpenPostModal}
         />
 
       </div>
@@ -623,9 +994,13 @@ export default function App() {
       {/* 4. Subscriptions Modal (₹299 vs ₹799) */}
       <SubscriptionModal
         isOpen={isSubscriptionsOpen}
-        onClose={() => setIsSubscriptionsOpen(false)}
-        currentPlanId={currentPlanId}
+        onClose={() => {
+          setIsSubscriptionsOpen(false);
+          setSubscriptionReason(null);
+        }}
+        currentPlanId={userProfile.membershipPlan}
         onSelectPlan={handleSelectPlan}
+        reasonMessage={subscriptionReason}
       />
 
       {/* 5. Help & Rules Modal */}
@@ -752,15 +1127,17 @@ export default function App() {
       <InsuranceModal
         isOpen={isInsuranceOpen}
         onClose={() => setIsInsuranceOpen(false)}
+        savedVehicleNumber={userProfile.attachedVehicle.plateNumber}
         onSuccess={(policy) => {
           showToast(`Policy ${policy} generated! Digital copy saved.`);
         }}
       />
 
-      {/* 11. State Border Entry Permit Tax Modal */}
+      {/* 11. State Border Entry Permit Tax Modal (Parivahan 4-Step Wizard) */}
       <StateTaxModal
         isOpen={isStateTaxOpen}
         onClose={() => setIsStateTaxOpen(false)}
+        savedVehicleNumber={userProfile.attachedVehicle.plateNumber}
         onSuccess={(receipt) => {
           showToast(`Border Permit Tax for ${receipt.state} paid! Receipt ready.`);
         }}
@@ -770,6 +1147,83 @@ export default function App() {
       <CngFinderModal
         isOpen={isCngFinderOpen}
         onClose={() => setIsCngFinderOpen(false)}
+      />
+
+      {/* 12b. Traffic e-Challan & Notice Checker */}
+      <ChallanModal
+        isOpen={isChallanOpen}
+        onClose={() => setIsChallanOpen(false)}
+        defaultVehicleNo={userProfile.attachedVehicle.plateNumber}
+      />
+
+      {/* 13. Registration & Vehicle Attachment Modal */}
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        initialProfile={userProfile}
+        onSaveProfile={(prof) => {
+          setUserProfile(prof);
+          showToast(`Profile updated! Vehicle ${prof.attachedVehicle.plateNumber} attached.`);
+        }}
+      />
+
+      {/* 14. Notification Center & Saved Filter Radar Modal */}
+      <NotificationCenterModal
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+        notifications={notifications}
+        alertCriteria={alertCriteria}
+        onUpdateCriteria={(newCrit) => {
+          setAlertCriteria(newCrit);
+          showToast('Radar Filter Criteria updated! Tracking active.');
+        }}
+        onMarkAllAsRead={() => {
+          setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+          showToast('All notifications marked as read.');
+        }}
+        onClearNotifications={() => {
+          setNotifications([]);
+          showToast('Notifications history cleared.');
+        }}
+        onSelectBooking={(bId) => {
+          setActiveTab('market');
+          const targetBooking = bookings.find((b) => b.id === bId);
+          if (targetBooking) {
+            handleOpenCommissionPay(targetBooking);
+          }
+        }}
+        onSimulateDutyMatch={handleSimulateDutyMatch}
+        userAttachedVehicleCategory={userProfile.attachedVehicle.category}
+      />
+
+      {/* 15. Driver Feedback & Trust Rating Modal */}
+      <DriverFeedbackModal
+        isOpen={isFeedbackModalOpen}
+        onClose={() => {
+          setIsFeedbackModalOpen(false);
+          setFeedbackModalBooking(null);
+        }}
+        booking={feedbackModalBooking}
+        onSubmitFeedback={handleSubmitFeedback}
+      />
+
+      {/* 16. Verified Vendor Trust Card & Community Reviews Modal */}
+      <VendorTrustModal
+        isOpen={isVendorTrustModalOpen}
+        onClose={() => {
+          setIsVendorTrustModalOpen(false);
+          setVendorTrustModalVendor(null);
+        }}
+        vendor={vendorTrustModalVendor}
+        feedbacks={feedbacks}
+        onRateVendor={() => {
+          setIsVendorTrustModalOpen(false);
+          const completedBooking = bookings.find((b) => b.status === 'Completed');
+          if (completedBooking) {
+            setFeedbackModalBooking(completedBooking);
+            setIsFeedbackModalOpen(true);
+          }
+        }}
       />
 
     </div>

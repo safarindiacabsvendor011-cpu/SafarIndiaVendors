@@ -1,4 +1,4 @@
-import { Booking, FreeVehicle, ChatThread, SubscriptionPlan } from '../types';
+import { Booking, FreeVehicle, ChatThread, SubscriptionPlan, DutyAlertCriteria, AppNotification, DriverFeedback } from '../types';
 
 export const INITIAL_BOOKINGS: Booking[] = [
   {
@@ -451,5 +451,149 @@ export const POPULAR_ROUTES = [
   { from: 'Chandigarh', to: 'Manali', km: 290, sedan: 5400, suv: 7200, innova: 9800 },
   { from: 'Jaipur', to: 'Udaipur', km: 395, sedan: 4800, suv: 6500, innova: 8900 },
 ];
+
+export const INITIAL_ALERT_CRITERIA: DutyAlertCriteria = {
+  enabled: true,
+  vehicleCategories: ['Sedan', 'Hatchback'],
+  preferredPickupCities: ['Haldwani', 'Delhi NCR', 'Dehradun'],
+  preferredDropCities: ['New Delhi', 'Delhi Division', 'Jaipur'],
+  minFare: 2500,
+  minCommission: 400,
+  soundEnabled: true,
+  pushVisualsEnabled: true,
+};
+
+export const INITIAL_NOTIFICATIONS: AppNotification[] = [
+  {
+    id: 'notif-1',
+    type: 'duty_match',
+    title: '🎯 Direct Match: Haldwani ⟶ New Delhi',
+    message: 'New duty posted matching your Sedan & Haldwani route criteria! Total Fare ₹3,800, Commission ₹600.',
+    timestamp: '10 mins ago',
+    read: false,
+    bookingId: '3575348',
+    matchedCriteria: ['Vehicle: Sedan', 'Pickup: Haldwani', 'Fare: ₹3,800'],
+    bookingData: {
+      pickupLocation: 'Haldwani',
+      dropLocation: 'New Delhi',
+      vehicleType: 'Sedan',
+      totalAmount: 3800,
+      commission: 600,
+    },
+  },
+  {
+    id: 'notif-2',
+    type: 'duty_match',
+    title: '🎯 Match Alert: Mussoorie ⟶ Delhi Division',
+    message: 'High-value Ertiga duty posted! Total Fare ₹6,000, Commission ₹1,000.',
+    timestamp: '35 mins ago',
+    read: false,
+    bookingId: '3530815',
+    matchedCriteria: ['Route: Mussoorie to Delhi', 'Min Fare > ₹4,000'],
+    bookingData: {
+      pickupLocation: 'Mussoorie',
+      dropLocation: 'Delhi Division',
+      vehicleType: 'Ertiga',
+      totalAmount: 6000,
+      commission: 1000,
+    },
+  },
+  {
+    id: 'notif-3',
+    type: 'escrow',
+    title: '🛡️ Escrow Payout Released',
+    message: 'Booking #3530802 ride completed. Net payout of ₹1,164 credited to your account (3% fee deducted: ₹36).',
+    timestamp: '2 hours ago',
+    read: true,
+  },
+  {
+    id: 'notif-4',
+    type: 'membership',
+    title: '👑 Verified Partner Active',
+    message: 'Your SafarIndiaCabs Verified Member Pass is active with unlimited duty exchange access & full escrow protection.',
+    timestamp: '1 day ago',
+    read: true,
+  },
+];
+
+export const INITIAL_FEEDBACKS: DriverFeedback[] = [
+  {
+    id: 'fb-101',
+    bookingId: '3575348',
+    fromVendorName: 'Doon Valley Fleet Solutions',
+    fromVendorPhone: '+91 97190 33452',
+    toVendorId: 'agent-101',
+    toVendorName: 'Nainital & Kumaon Travels',
+    rating: 5,
+    punctuality: 5,
+    vehicleCondition: 5,
+    driverBehavior: 5,
+    comments: 'Super fast pickup in Haldwani. Cab was clean, AC was running throughout, and guest was very happy.',
+    tags: ['⏱️ On-Time Pickup', '✨ Clean & Sanitized Cab', '❄️ Chilled AC In Plains', '🤝 Polite & Professional'],
+    createdAt: 'Yesterday, 04:30 PM',
+  },
+  {
+    id: 'fb-102',
+    bookingId: '3530802',
+    fromVendorName: 'SafarIndiaCabs (You)',
+    fromVendorPhone: '8506046346',
+    toVendorId: 'agent-102',
+    toVendorName: 'Doon Valley Fleet Solutions',
+    rating: 5,
+    punctuality: 5,
+    vehicleCondition: 5,
+    driverBehavior: 5,
+    comments: 'Excellent customer handling for VIP ride. Innova Crysta was spotless, AC was chilled, and escrow payout was instant.',
+    tags: ['⏱️ On-Time Pickup', '✨ Clean & Sanitized Cab', '❄️ Chilled AC In Plains', '🤝 Polite & Professional', '💳 Fair Billing & Escrow'],
+    createdAt: '01 Nov, 09:30 PM',
+  },
+  {
+    id: 'fb-103',
+    bookingId: '3511200',
+    fromVendorName: 'Kumaon Express Cabs',
+    fromVendorPhone: '+91 94110 55219',
+    toVendorId: 'agent-101',
+    toVendorName: 'Nainital & Kumaon Travels',
+    rating: 4,
+    punctuality: 5,
+    vehicleCondition: 4,
+    driverBehavior: 5,
+    comments: 'Reliable operator in Haldwani Kathgodam belt. Clear payment terms and professional communication.',
+    tags: ['⏱️ On-Time Pickup', '🤝 Polite & Professional', '💳 Fair Billing & Escrow'],
+    createdAt: '30 Oct, 04:15 PM',
+  },
+  {
+    id: 'fb-104',
+    bookingId: '3581290',
+    fromVendorName: 'Delhi NCR Fleet Union',
+    fromVendorPhone: '+91 98111 22334',
+    toVendorId: 'agent-104',
+    toVendorName: 'Pink City Taxi Desk',
+    rating: 5,
+    punctuality: 5,
+    vehicleCondition: 5,
+    driverBehavior: 5,
+    comments: 'Top notch Dzire cab provided on Jaipur Highway. Client gave 5 star appreciation.',
+    tags: ['✨ Clean & Sanitized Cab', '❄️ Chilled AC In Plains', '🛡️ Safe Highway Driving'],
+    createdAt: '28 Oct, 01:20 PM',
+  },
+  {
+    id: 'fb-105',
+    bookingId: '3530815',
+    fromVendorName: 'Shivalik Fleet Corp',
+    fromVendorPhone: '+91 98150 77112',
+    toVendorId: 'agent-103',
+    toVendorName: 'Himalayan Tour Desk',
+    rating: 5,
+    punctuality: 4,
+    vehicleCondition: 5,
+    driverBehavior: 5,
+    comments: 'Good experience on Mussoorie hill route. Experienced driver with good mountain driving skills.',
+    tags: ['🛡️ Safe Highway Driving', '🚗 Well-Maintained Vehicle'],
+    createdAt: '26 Oct, 11:45 AM',
+  },
+];
+
+
 
 

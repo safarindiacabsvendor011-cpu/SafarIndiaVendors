@@ -22,6 +22,8 @@ interface BookingCardProps {
   onShareWhatsApp: (booking: Booking) => void;
   onOpenCommissionPay: (booking: Booking) => void;
   onViewDutySlip?: (booking: Booking) => void;
+  onRateBooking?: (booking: Booking) => void;
+  onOpenVendorTrust?: (vendor: Booking['postedBy']) => void;
 }
 
 export const BookingCard: React.FC<BookingCardProps> = ({
@@ -30,6 +32,8 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   onShareWhatsApp,
   onOpenCommissionPay,
   onViewDutySlip,
+  onRateBooking,
+  onOpenVendorTrust,
 }) => {
   const isUnlocked = booking.hasUnlockedContact;
   const isExpired = booking.status === 'Expired';
@@ -76,10 +80,27 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         )}
       </div>
 
-      {/* Date & Time Row */}
-      <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-500">
-        <Clock className="w-3.5 h-3.5" />
-        <span>{booking.pickupDate}</span>
+      {/* Date & Time Row + Vendor Trust Badge */}
+      <div className="flex items-center justify-between text-xs">
+        <div className="flex items-center gap-1.5 font-semibold text-rose-500">
+          <Clock className="w-3.5 h-3.5" />
+          <span>{booking.pickupDate}</span>
+        </div>
+
+        {/* Vendor Average Rating Interactive Trust Badge */}
+        <button
+          type="button"
+          onClick={() => onOpenVendorTrust?.(booking.postedBy)}
+          className="flex items-center gap-1.5 bg-gradient-to-r from-amber-50 to-amber-100/90 hover:from-amber-100 hover:to-amber-200 border border-amber-300 px-2.5 py-1 rounded-full text-[11px] shadow-2xs transition-all active:scale-95 group cursor-pointer"
+          title="Click to view verified vendor trust rating & reviews"
+        >
+          <div className="flex items-center gap-0.5">
+            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500 group-hover:scale-110 transition-transform" />
+            <span className="font-black text-slate-950 font-mono">{booking.postedBy.rating.toFixed(1)}</span>
+          </div>
+          <span className="text-[10px] text-amber-900 font-semibold">({booking.postedBy.reviewsCount})</span>
+          <span className="text-[9px] bg-amber-200/90 text-amber-950 px-1 py-0.2 rounded font-bold uppercase tracking-tight">Trust ✓</span>
+        </button>
       </div>
 
       {/* Route Row: Pickup ⟶ [....... One Way ......>] ⟶ Drop */}
@@ -99,6 +120,26 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         <div className="font-bold text-slate-800 text-sm max-w-[38%] truncate text-right">
           {booking.dropLocation}
         </div>
+      </div>
+
+      {/* Verified Vendor Reputation Banner for Trust Building */}
+      <div className="flex items-center justify-between bg-slate-50/90 px-2.5 py-1.5 rounded-xl border border-slate-200/70 text-[11px]">
+        <div className="flex items-center gap-1.5 truncate">
+          <span className="text-slate-400 font-medium">Vendor:</span>
+          <span className="font-bold text-slate-900 truncate">{booking.postedBy.name}</span>
+          <span className="text-[10px] text-emerald-700 font-semibold hidden sm:inline flex items-center gap-0.5">
+            • ⏱️ 98% On-Time
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onOpenVendorTrust?.(booking.postedBy)}
+          className="text-amber-700 hover:text-amber-800 font-bold hover:underline flex items-center gap-1 shrink-0 ml-1.5 cursor-pointer text-[10px]"
+          title="See verified B2B feedback & detailed scores"
+        >
+          <ShieldCheck className="w-3 h-3 text-blue-600" />
+          <span>Trust Card ↗</span>
+        </button>
       </div>
 
       {/* Financials & Car Details */}
@@ -143,7 +184,18 @@ export const BookingCard: React.FC<BookingCardProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-emerald-200/60 text-slate-700">
             <div>
               <span className="text-[10px] text-slate-500 block">Posting Agent:</span>
-              <strong className="text-slate-900">{booking.postedBy.name}</strong>
+              <div className="flex items-center gap-1.5">
+                <strong className="text-slate-900">{booking.postedBy.name}</strong>
+                <button
+                  type="button"
+                  onClick={() => onOpenVendorTrust?.(booking.postedBy)}
+                  className="text-[10px] text-amber-900 font-black flex items-center gap-0.5 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 transition-colors cursor-pointer"
+                  title="View Vendor Trust Card"
+                >
+                  <Star className="w-2.5 h-2.5 fill-amber-400" />
+                  {booking.postedBy.rating.toFixed(1)} ★ ({booking.postedBy.reviewsCount})
+                </button>
+              </div>
               <div className="font-mono text-emerald-800 font-semibold mt-0.5">{booking.postedBy.phone}</div>
             </div>
 
@@ -177,10 +229,14 @@ export const BookingCard: React.FC<BookingCardProps> = ({
               <div className="font-semibold text-slate-400 select-none blur-[3px]">
                 Hidden Contact Info
               </div>
-              <div className="flex items-center gap-1 text-amber-500 font-bold text-[11px]">
+              <button
+                type="button"
+                onClick={() => onOpenVendorTrust?.(booking.postedBy)}
+                className="flex items-center gap-1 text-amber-700 hover:text-amber-800 font-bold text-[11px] hover:underline cursor-pointer"
+              >
                 <Star className="w-3 h-3 fill-amber-400" />
-                <span>★ {booking.postedBy.rating} ({booking.postedBy.reviewsCount} Reviews)</span>
-              </div>
+                <span>★ {booking.postedBy.rating.toFixed(1)} ({booking.postedBy.reviewsCount} Reviews) • Trust Card ↗</span>
+              </button>
             </div>
           </div>
 

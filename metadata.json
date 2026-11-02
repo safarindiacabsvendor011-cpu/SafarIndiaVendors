@@ -1,6 +1,6 @@
 {
-  "name": "Creative Studio",
-  "description": "Interactive web application studio ready to build ideas into reality.",
+  "name": "SafarIndiaCabsVendors",
+  "description": "B2B Taxi Operator Network & Duty Exchange with Mediator Escrow, Driver Suvidha Hub, and Membership Plans.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

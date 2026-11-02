@@ -48,6 +48,25 @@ export interface Booking {
   };
   hasUnlockedContact?: boolean;
   chatId?: string;
+  hasGivenFeedback?: boolean;
+  feedbackRating?: number;
+  feedbackTags?: string[];
+}
+
+export interface DriverFeedback {
+  id: string;
+  bookingId: string;
+  fromVendorName: string;
+  fromVendorPhone: string;
+  toVendorId: string;
+  toVendorName: string;
+  rating: number; // 1 - 5
+  punctuality?: number;
+  vehicleCondition?: number;
+  driverBehavior?: number;
+  comments: string;
+  tags: string[];
+  createdAt: string;
 }
 
 export interface FreeVehicle {
@@ -103,6 +122,20 @@ export interface SubscriptionPlan {
   features: string[];
   badge: string;
   popular?: boolean;
+}
+
+export interface UserProfile {
+  name: string;
+  phone: string;
+  city: string;
+  attachedVehicle: {
+    plateNumber: string;
+    model: string;
+    category: VehicleCategory;
+  };
+  membershipPlan: 'none' | 'verified' | 'platinum';
+  membershipExpiry: string;
+  isLoggedIn: boolean;
 }
 
 export interface Bid {
@@ -215,3 +248,33 @@ export interface WalletTransaction {
   date: string;
   status: 'success' | 'pending';
 }
+
+export interface DutyAlertCriteria {
+  enabled: boolean;
+  vehicleCategories: VehicleCategory[];
+  preferredPickupCities: string[];
+  preferredDropCities: string[];
+  minFare: number;
+  minCommission: number;
+  soundEnabled: boolean;
+  pushVisualsEnabled: boolean;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'duty_match' | 'escrow' | 'membership' | 'system';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  bookingId?: string;
+  matchedCriteria?: string[];
+  bookingData?: {
+    pickupLocation: string;
+    dropLocation: string;
+    vehicleType: string;
+    totalAmount: number;
+    commission: number;
+  };
+}
+

@@ -14,9 +14,11 @@ import {
   X,
   Heart,
   Sparkles,
-  Headphones
+  Headphones,
+  RotateCw,
+  ArrowDown
 } from 'lucide-react';
-import { Booking, FreeVehicle } from '../types';
+import { Booking, FreeVehicle, VehicleCategory, DutyAlertCriteria } from '../types';
 import { BookingCard } from './BookingCard';
 
 interface MarketTabProps {
@@ -33,6 +35,12 @@ interface MarketTabProps {
   onOpenStateTax: () => void;
   onOpenCngFinder: () => void;
   onOpenHelpRules: () => void;
+  attachedVehicleCategory?: VehicleCategory;
+  onRefresh?: () => void;
+  onOpenNotificationCenter?: () => void;
+  alertCriteria?: DutyAlertCriteria;
+  onRateBooking?: (booking: Booking) => void;
+  onOpenVendorTrust?: (vendor: Booking['postedBy']) => void;
 }
 
 export const MarketTab: React.FC<MarketTabProps> = ({
@@ -49,12 +57,93 @@ export const MarketTab: React.FC<MarketTabProps> = ({
   onOpenStateTax,
   onOpenCngFinder,
   onOpenHelpRules,
+  attachedVehicleCategory = 'Sedan',
+  onRefresh,
+  onOpenNotificationCenter,
+  alertCriteria,
+  onRateBooking,
+  onOpenVendorTrust,
 }) => {
   const [marketSubTab, setMarketSubTab] = React.useState<'bookings' | 'free_vehicles'>('bookings');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedVehicleFilter, setSelectedVehicleFilter] = React.useState<string>('ALL');
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [lastRefreshedText, setLastRefreshedText] = React.useState('Updated: Just now');
+  
+  // Pull-to-refresh state using the actual scrolling container (<main>)
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const [pullDistance, setPullDistance] = React.useState(0);
+  const [isPulling, setIsPulling] = React.useState(false);
+  const touchStartY = React.useRef(0);
+
+  const getScrollTop = React.useCallback(() => {
+    const scrollEl = containerRef.current?.closest('main') || document.querySelector('main');
+    return scrollEl ? scrollEl.scrollTop : (window.scrollY || 0);
+  }, []);
+
+  const handleTriggerRefresh = React.useCallback(() => {
+    setIsRefreshing(true);
+    setPullDistance(54); // keep indicator open while refreshing
+    if (onRefresh) onRefresh();
+    setTimeout(() => {
+      setIsRefreshing(false);
+      setPullDistance(0);
+      setLastRefreshedText('Updated: Just now');
+    }, 750);
+  }, [onRefresh]);
+
+  // Touch Handlers for Mobile Pull-to-Refresh
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (getScrollTop() <= 4) {
+      touchStartY.current = e.touches[0].clientY;
+      setIsPulling(true);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isPulling || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - touchStartY.current;
+    
+    // Only pull down if at the very top of the scroll container
+    if (diff > 0 && getScrollTop() <= 4) {
+      // Gentle rubber-band damping
+      const distance = Math.min(80, Math.pow(diff, 0.82));
+      setPullDistance(distance);
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isPulling) return;
+    setIsPulling(false);
+    if (pullDistance >= 48 && !isRefreshing) {
+      handleTriggerRefresh();
+    } else {
+      setPullDistance(0);
+    }
+  };
+
+  // Optional mouse drag/wheel down at top for desktop
+  const handleWheel = (e: React.WheelEvent) => {
+    if (getScrollTop() <= 2 && e.deltaY < -28 && !isRefreshing) {
+      handleTriggerRefresh();
+    }
+  };
 
   const filteredBookings = bookings.filter((b) => {
     if (b.status === 'Cancelled') return false;
+
+    // Vehicle Category Filter
+    if (selectedVehicleFilter !== 'ALL') {
+      const target = selectedVehicleFilter.toLowerCase();
+      const bType = b.vehicleType.toLowerCase();
+      if (!bType.includes(target) && !target.includes(bType)) {
+        return false;
+      }
+    }
+
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchId = b.id.toLowerCase().includes(q);
@@ -67,7 +156,44 @@ export const MarketTab: React.FC<MarketTabProps> = ({
   });
 
   return (
-    <div className="space-y-4 pb-20">
+    <div 
+      ref={containerRef}
+      className="space-y-4 pb-20 relative select-none"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onWheel={handleWheel}
+    >
+      {/* 0. Fluid Scroll / Pull-to-Refresh Indicator Banner */}
+      <div 
+        className="overflow-hidden transition-all duration-300 flex flex-col items-center justify-center text-xs pointer-events-none"
+        style={{ 
+          height: isRefreshing ? '54px' : pullDistance > 0 ? `${pullDistance}px` : '0px',
+          opacity: isRefreshing || pullDistance > 10 ? 1 : 0
+        }}
+      >
+        <div className="flex items-center gap-2 py-1.5 px-3.5 rounded-full bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-300 text-amber-950 shadow-md font-bold text-[11px] animate-in fade-in duration-150">
+          {isRefreshing ? (
+            <>
+              <RotateCw className="w-4 h-4 text-amber-600 animate-spin" />
+              <span>Updating live duties & vendor trust...</span>
+            </>
+          ) : pullDistance >= 48 ? (
+            <>
+              <ArrowDown className="w-4 h-4 text-emerald-600 rotate-180 transition-transform duration-200" />
+              <span className="text-emerald-800">Release to refresh live duties!</span>
+            </>
+          ) : (
+            <>
+              <ArrowDown 
+                className="w-4 h-4 text-amber-600 transition-transform duration-200" 
+                style={{ transform: `rotate(${Math.min(180, (pullDistance / 48) * 180)}deg)` }}
+              />
+              <span>Pull down to refresh live duties...</span>
+            </>
+          )}
+        </div>
+      </div>
       
       {/* 1. Distinctive Sub Tabs: Duty Leads | Khali Gaadi */}
       <div className="bg-slate-100 p-1.5 rounded-full flex items-center justify-between gap-1 shadow-inner max-w-md mx-auto">
@@ -114,6 +240,119 @@ export const MarketTab: React.FC<MarketTabProps> = ({
         >
           <SlidersHorizontal className="w-5 h-5" />
         </button>
+      </div>
+
+      {/* 2b. Live Duty Header with Scroll Refresh Cue (Button Removed, Scroll Enabled) */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 shadow-xs space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-xs font-black text-slate-800 uppercase tracking-tight">
+              Live Duty Mandi
+            </span>
+            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded-md border border-emerald-200">
+              {filteredBookings.length} Active
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live • Pull down to refresh</span>
+          </div>
+        </div>
+
+        {/* Duty Radar Quick Notification Banner */}
+        {alertCriteria?.enabled && (
+          <div 
+            onClick={onOpenNotificationCenter}
+            className="p-2 rounded-xl bg-amber-50/80 hover:bg-amber-100/80 border border-amber-200 text-[11px] flex items-center justify-between cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-1.5 truncate">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold text-amber-950 truncate">
+                Radar Active: <span className="text-slate-800">{alertCriteria.vehicleCategories.join(', ')}</span>
+                {alertCriteria.preferredPickupCities.length > 0 && (
+                  <span className="text-slate-500 font-normal"> · {alertCriteria.preferredPickupCities.slice(0, 2).join(', ')}</span>
+                )}
+              </span>
+            </div>
+
+            <span className="text-[10px] font-black text-amber-700 shrink-0 ml-1.5 bg-white/70 px-1.5 py-0.5 rounded border border-amber-200">
+              Edit Alert Radar ⚙
+            </span>
+          </div>
+        )}
+
+        {/* Quick Driver Vehicle Selection Row */}
+        <div className="pt-1 border-t border-slate-100">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-bold text-slate-600 flex items-center gap-1">
+              <Car className="w-3.5 h-3.5 text-amber-500" />
+              <span>Filter by Cab Category:</span>
+            </span>
+            {selectedVehicleFilter !== 'ALL' && (
+              <button
+                onClick={() => setSelectedVehicleFilter('ALL')}
+                className="text-[10px] font-bold text-amber-600 hover:underline"
+              >
+                Show All Cabs
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-[11px]">
+            {/* Option 1: All Vehicles */}
+            <button
+              onClick={() => setSelectedVehicleFilter('ALL')}
+              className={`px-3 py-1 rounded-full font-bold whitespace-nowrap transition-all ${
+                selectedVehicleFilter === 'ALL'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              All Vehicles
+            </button>
+
+            {/* Option 2: My Attached Cab Shortcut */}
+            {attachedVehicleCategory && (
+              <button
+                onClick={() => setSelectedVehicleFilter(attachedVehicleCategory)}
+                className={`px-3 py-1 rounded-full font-black whitespace-nowrap transition-all flex items-center gap-1 ${
+                  selectedVehicleFilter === attachedVehicleCategory
+                    ? 'bg-amber-500 text-white shadow-xs'
+                    : 'bg-amber-50 text-amber-800 border border-amber-300 hover:bg-amber-100'
+                }`}
+              >
+                <Sparkles className="w-3 h-3 text-amber-600 fill-amber-400" />
+                <span>My Cab: {attachedVehicleCategory}</span>
+              </button>
+            )}
+
+            {/* Other vehicle options */}
+            {(['Sedan', 'Ertiga', 'INNOVA CRYSTA', 'Hatchback', 'SUV'] as const).map((cat) => {
+              if (cat === attachedVehicleCategory) return null;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedVehicleFilter(cat)}
+                  className={`px-2.5 py-1 rounded-full font-semibold whitespace-nowrap transition-all ${
+                    selectedVehicleFilter === cat
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* 3. Filter Chips Row */}
@@ -194,6 +433,8 @@ export const MarketTab: React.FC<MarketTabProps> = ({
                   onOpenChat={onOpenChat}
                   onShareWhatsApp={onShareWhatsApp}
                   onOpenCommissionPay={onOpenCommissionPay}
+                  onRateBooking={onRateBooking}
+                  onOpenVendorTrust={onOpenVendorTrust}
                 />
 
                 {/* EMBEDDED BANNER AFTER 2ND BOOKING (Exact user request) */}
