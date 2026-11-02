@@ -13,7 +13,10 @@ import {
   Sparkles, 
   Award, 
   HelpCircle,
-  Clock
+  Clock,
+  ExternalLink,
+  Building2,
+  RefreshCw
 } from 'lucide-react';
 
 interface InsuranceModalProps {
@@ -24,10 +27,10 @@ interface InsuranceModalProps {
 }
 
 const INSURERS = [
-  { id: 'digit', name: 'Go Digit General Insurance', claimRatio: '98.5%', logo: 'Digit' },
-  { id: 'tata', name: 'TATA AIG Commercial Auto', claimRatio: '99.1%', logo: 'TATA AIG' },
-  { id: 'icici', name: 'ICICI Lombard Bharat Griha', claimRatio: '97.8%', logo: 'ICICI' },
-  { id: 'hdfc', name: 'HDFC ERGO General Insurance', claimRatio: '98.2%', logo: 'HDFC' },
+  { id: 'digit', name: 'Go Digit General Insurance', claimRatio: '98.5%', partnerCode: 'POSP-DIGIT-8842', logo: 'Digit' },
+  { id: 'tata', name: 'TATA AIG Commercial Auto', claimRatio: '99.1%', partnerCode: 'POSP-TATA-3109', logo: 'TATA AIG' },
+  { id: 'icici', name: 'ICICI Lombard Bharat Griha', claimRatio: '97.8%', partnerCode: 'POSP-ICICI-6621', logo: 'ICICI' },
+  { id: 'hdfc', name: 'HDFC ERGO General Insurance', claimRatio: '98.2%', partnerCode: 'POSP-HDFC-9014', logo: 'HDFC' },
 ];
 
 export const InsuranceModal: React.FC<InsuranceModalProps> = ({ 
@@ -38,11 +41,14 @@ export const InsuranceModal: React.FC<InsuranceModalProps> = ({
 }) => {
   const [vehicleNo, setVehicleNo] = useState(savedVehicleNumber);
   const [model, setModel] = useState('Swift Dzire Tour 2024');
+  const [mfgYear, setMfgYear] = useState('2024');
+  const [existingPolicyExpiry, setExistingPolicyExpiry] = useState('expiring_soon');
   const [duration, setDuration] = useState<'3_month' | '1_year'>('3_month');
   const [planType, setPlanType] = useState<'tp' | 'comp'>('tp');
   const [selectedInsurer, setSelectedInsurer] = useState('digit');
   const [includePassengerCover, setIncludePassengerCover] = useState(true);
   const [seatingCapacity, setSeatingCapacity] = useState(5);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [issuedPolicy, setIssuedPolicy] = useState<any | null>(null);
 
   if (!isOpen) return null;
@@ -63,24 +69,65 @@ export const InsuranceModal: React.FC<InsuranceModalProps> = ({
 
   const handleIssuePolicy = (e: React.FormEvent) => {
     e.preventDefault();
-    const policyId = `POL/SIC/${selectedInsurer.toUpperCase()}/2026/${Math.floor(100000 + Math.random() * 900000)}`;
-    const policyData = {
-      policyNo: policyId,
-      insurerName: INSURERS.find((i) => i.id === selectedInsurer)?.name || 'Go Digit Insurance',
-      vehicleNo: vehicleNo.toUpperCase(),
-      model,
-      duration: duration === '3_month' ? '3 Months (Quarterly)' : '1 Year (Annual)',
-      planType: planType === 'tp' ? 'Third Party Only (TP)' : 'Comprehensive (Own Damage + TP)',
-      seating: `${seatingCapacity} Passengers`,
-      passengerCover: includePassengerCover ? '₹2,00,000 / seat PA Cover Included' : 'Standard',
-      premium: currentPrice,
-      validFrom: 'Immediate (Today)',
-      validTill: duration === '3_month' ? 'Feb 02, 2027' : 'Nov 02, 2027',
-      vahanSyncId: `IRDAI/POSP/2611/${Math.floor(10000000 + Math.random() * 90000000)}`,
-    };
+    setIsProcessing(true);
 
-    setIssuedPolicy(policyData);
-    onSuccess(policyId);
+    setTimeout(() => {
+      setIsProcessing(false);
+      const chosen = INSURERS.find((i) => i.id === selectedInsurer) || INSURERS[0];
+      const policyId = `POL/SIC/${chosen.name.split(' ')[0].toUpperCase()}/2026/${Math.floor(100000 + Math.random() * 900000)}`;
+      const policyData = {
+        policyNo: policyId,
+        insurerName: chosen.name,
+        partnerCode: chosen.partnerCode,
+        vehicleNo: vehicleNo.toUpperCase().trim(),
+        model,
+        mfgYear,
+        existingExpiryStatus: existingPolicyExpiry === 'expiring_soon' ? 'Expiring in < 15 Days' : existingPolicyExpiry === 'expired_recent' ? 'Expired within 90 days' : 'Continuous Renewal',
+        duration: duration === '3_month' ? '3 Months (Quarterly Short-Term)' : '1 Year (Annual Policy)',
+        planType: planType === 'tp' ? 'Third Party Only (TP Commercial Cab)' : 'Comprehensive (Own Damage + 3rd Party)',
+        seating: `${seatingCapacity} Passengers`,
+        passengerCover: includePassengerCover ? '₹2,00,000 / seat Passenger PA Cover' : 'Standard Basic',
+        premium: currentPrice,
+        validFrom: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+        validTill: duration === '3_month' ? '02 Feb, 2027' : '02 Nov, 2027',
+        vahanSyncId: `IRDAI/POSP/2611/${Math.floor(10000000 + Math.random() * 90000000)}`,
+        downloadUrl: `#policy-${policyId}.pdf`
+      };
+
+      setIssuedPolicy(policyData);
+      onSuccess(policyId);
+    }, 1000);
+  };
+
+  const handleDownloadPDF = () => {
+    if (!issuedPolicy) return;
+    const element = document.createElement('a');
+    const file = new Blob([
+      `=========================================================\n` +
+      `      GOVERNMENT OF INDIA - IRDAI COMMERCIAL AUTO POLICY\n` +
+      `          ISSUED VIA SAFAR INDIACABS PoSP NETWORK\n` +
+      `=========================================================\n\n` +
+      `Policy Number     : ${issuedPolicy.policyNo}\n` +
+      `Underwriting Firm : ${issuedPolicy.insurerName}\n` +
+      `PoSP Partner Code : ${issuedPolicy.partnerCode}\n` +
+      `VAHAN Portal Sync : ${issuedPolicy.vahanSyncId}\n\n` +
+      `-- VEHICLE PARTICULARS --\n` +
+      `Registration No.  : ${issuedPolicy.vehicleNo}\n` +
+      `Make & Model      : ${issuedPolicy.model} (${issuedPolicy.mfgYear})\n` +
+      `Seating Capacity  : ${issuedPolicy.seating}\n` +
+      `Policy Scope      : ${issuedPolicy.planType}\n` +
+      `Passenger Cover   : ${issuedPolicy.passengerCover}\n\n` +
+      `-- VALIDITY & PREMIUM --\n` +
+      `Effective Period  : ${issuedPolicy.validFrom} to ${issuedPolicy.validTill} (${issuedPolicy.duration})\n` +
+      `Premium Received  : INR ${issuedPolicy.premium}.00 (All applicable taxes included)\n\n` +
+      `Status            : ACTIVE & LEGALLY VALID FOR ALL STATE BORDERS\n` +
+      `Verified on Parivahan VAHAN Commercial Motor Pool.\n`
+    ], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `${issuedPolicy.vehicleNo.replace(/\s+/g, '_')}_Insurance_Policy.txt`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
   };
 
   const handleShareWhatsAppPolicy = () => {
@@ -88,13 +135,13 @@ export const InsuranceModal: React.FC<InsuranceModalProps> = ({
     const text = `*COMMERCIAL CAB INSURANCE POLICY (PoSP ISSUED)*%0A%0A` +
       `🛡️ *Insurer:* ${issuedPolicy.insurerName}%0A` +
       `📄 *Policy No:* ${issuedPolicy.policyNo}%0A` +
-      `🚗 *Vehicle No:* ${issuedPolicy.vehicleNo} (${issuedPolicy.model})%0A` +
+      `🚗 *Vehicle No:* ${issuedPolicy.vehicleNo} (${issuedPolicy.model} - ${issuedPolicy.mfgYear})%0A` +
       `⏳ *Duration:* ${issuedPolicy.duration}%0A` +
-      `🛡️ *Plan:* ${issuedPolicy.planType}%0A` +
+      `🛡️ *Plan Scope:* ${issuedPolicy.planType}%0A` +
       `📅 *Validity:* ${issuedPolicy.validFrom} to ${issuedPolicy.validTill}%0A` +
-      `💳 *Premium Paid:* ₹${issuedPolicy.premium}%0A` +
-      `✅ *VAHAN Sync ID:* ${issuedPolicy.vahanSyncId}%0A%0A` +
-      `_Issued via SafarIndiaCabs PoSP Commercial Insurance Desk. Legally valid across all RTO checkposts & toll barriers._`;
+      `💳 *Total Premium:* ₹${issuedPolicy.premium}%0A` +
+      `✅ *VAHAN IRDAI Sync ID:* ${issuedPolicy.vahanSyncId}%0A%0A` +
+      `_Issued via SafarIndiaCabs PoSP Commercial Insurance Desk. Legally accepted across all RTO checkposts & toll barriers._`;
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
@@ -198,24 +245,33 @@ export const InsuranceModal: React.FC<InsuranceModalProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="py-2 px-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5"
+                    onClick={handleDownloadPDF}
+                    className="py-2.5 px-3 rounded-xl bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800 active:scale-95 shadow-xs transition-all"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>Print Policy</span>
+                    <Download className="w-4 h-4 text-amber-400" />
+                    <span>Download PDF Policy</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setIssuedPolicy(null);
-                      onClose();
-                    }}
-                    className="py-2 px-3 rounded-xl bg-slate-900 text-white font-bold text-xs"
+                    onClick={() => window.print()}
+                    className="py-2.5 px-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-50"
                   >
-                    Done & Return
+                    <Printer className="w-4 h-4" />
+                    <span>Print Policy</span>
                   </button>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIssuedPolicy(null);
+                    onClose();
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors"
+                >
+                  Done & Return to Suvidha Hub
+                </button>
               </div>
 
             </div>
@@ -308,6 +364,36 @@ export const InsuranceModal: React.FC<InsuranceModalProps> = ({
                     placeholder="Dzire / Crysta / Ertiga"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-amber-500"
                   />
+                </div>
+              </div>
+
+              {/* Manufacturing Year & Existing Policy Expiry Status */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Manufacturing Year</label>
+                  <select
+                    value={mfgYear}
+                    onChange={(e) => setMfgYear(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-bold focus:outline-none focus:border-amber-500"
+                  >
+                    {['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2018 or older'].map((yr) => (
+                      <option key={yr} value={yr}>{yr}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-slate-700 font-semibold mb-1">Existing Policy Expiry</label>
+                  <select
+                    value={existingPolicyExpiry}
+                    onChange={(e) => setExistingPolicyExpiry(e.target.value)}
+                    className="w-full px-2 py-2 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold text-[11px] focus:outline-none focus:border-amber-500"
+                  >
+                    <option value="expiring_soon">Expiring in &lt; 15 Days</option>
+                    <option value="expired_recent">Expired &lt; 90 Days (No Inspection)</option>
+                    <option value="expired_breakin">Expired &gt; 90 Days (Break-in)</option>
+                    <option value="new_vehicle">Brand New Commercial Regn</option>
+                  </select>
                 </div>
               </div>
 

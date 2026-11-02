@@ -67,10 +67,17 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
 
         {/* Quick status bar */}
         <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-700/80 text-center text-xs">
-          <div>
-            <div className="text-[10px] text-slate-400">Fastag Balance</div>
-            <div className="font-mono font-bold text-amber-400 mt-0.5">₹1,240</div>
-          </div>
+          <button 
+            type="button" 
+            onClick={onCheckChallan}
+            className="text-left group hover:bg-slate-800/80 p-1 rounded-lg transition-colors"
+          >
+            <div className="text-[10px] text-slate-400 flex items-center justify-between">
+              <span>Fastag Balance</span>
+              <ChevronRight className="w-2.5 h-2.5 text-slate-500 group-hover:text-amber-400" />
+            </div>
+            <div className="font-mono font-bold text-amber-400 mt-0.5">₹1,240 • Active</div>
+          </button>
           <div>
             <div className="text-[10px] text-slate-400">AITP Permit</div>
             <div className="font-bold text-emerald-400 mt-0.5">Active</div>
@@ -172,7 +179,7 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
 
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
-              Commercial Insurance Desk (3-Mo / Annual)
+              3-Month Commercial Cab Insurance
             </h3>
             <p className="text-[11px] text-slate-500 mt-1 leading-snug">
               Instant 3-Month TP & Comprehensive tourist cab insurance starting at ₹1,499. Instant digital policy download.
@@ -185,7 +192,7 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
           </div>
         </div>
 
-        {/* Module 3: Traffic e-Challan Checker */}
+        {/* Module 3: Traffic e-Challan & FASTag Balance Checker */}
         <div
           onClick={onCheckChallan}
           className="bg-white rounded-2xl border border-slate-200/80 p-4 space-y-3 shadow-xs hover:border-indigo-500 cursor-pointer transition-all flex flex-col justify-between group"
@@ -195,21 +202,21 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
               <CreditCard className="w-6 h-6 stroke-[2.2]" />
             </div>
             <span className="text-[10px] font-bold bg-indigo-100 text-indigo-900 px-2 py-0.5 rounded-full border border-indigo-200">
-              Virtual Court Live
+              Virtual Court & NETC
             </span>
           </div>
 
           <div>
             <h3 className="font-extrabold text-sm text-slate-900 leading-tight">
-              Traffic e-Challan & Notice Checker
+              Traffic e-Challan & FASTag Balance
             </h3>
             <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-              Check live pending traffic challans across DL, HR, UP, RJ & UK with CCTV camera evidence & direct UPI payment.
+              Check live pending traffic fines across DL, HR, UP, RJ, UK & PB with photo proof, plus 1-tap instant FASTag recharge.
             </p>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-[11px] font-bold text-indigo-600">
-            <span>Query Live Challans</span>
+            <span>Check Fines & FASTag</span>
             <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
           </div>
         </div>
@@ -224,7 +231,7 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
               <Fuel className="w-6 h-6 stroke-[2.2]" />
             </div>
             <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded-full border border-emerald-200">
-              200+ Bar Radar
+              Live Crowd Radar
             </span>
           </div>
 
@@ -233,7 +240,7 @@ export const DriverHubTab: React.FC<DriverHubTabProps> = ({
               Highway 24x7 CNG & Pressure Finder
             </h3>
             <p className="text-[11px] text-slate-500 mt-1 leading-snug">
-              Yamuna Exp, NH-48, NH-44 & NH-58 live gas pressure, crowdsourced wait times & Google Maps navigation.
+              Haldwani, Yamuna Exp, NH-48 & NH-44 routes with 200+ bar radar, queue time & 1-tap crowdsourced driver votes.
             </p>
           </div>
 
